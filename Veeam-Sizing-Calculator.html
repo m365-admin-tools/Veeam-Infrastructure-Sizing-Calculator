@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veeam Infrastructure Sizing Calculator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --b9:#042C53;--b8:#0C447C;--b6:#185FA5;--b2:#85B7EB;--b1:#B5D4F4;--b0:#E6F1FB;
+  --t8:#085041;--t6:#0F6E56;--t1:#9FE1CB;--t0:#E1F5EE;
+  --a8:#633806;--a6:#854F0B;--a2:#EF9F27;--a1:#FAC775;--a0:#FAEEDA;
+  --r8:#791F1F;--r6:#A32D2D;--r1:#F7C1C1;--r0:#FCEBEB;
+  --g9:#2C2C2A;--g8:#444441;--g6:#5F5E5A;--g4:#888780;--g2:#B4B2A9;--g1:#D3D1C7;--g0:#F1EFE8;
+  --tx:#1a1a19;--txm:#5F5E5A;--bd:rgba(0,0,0,.12);--bds:rgba(0,0,0,.22);
+  --rad:8px;--radl:12px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;line-height:1.5;color:var(--tx);background:#ebebde;}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* TOP BAR */
+#tb{background:var(--b9);color:#fff;padding:9px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;}
+#tb h1{font-size:13px;font-weight:600;color:var(--b1);white-space:nowrap;}
+#tb .tsep{color:#1d4a70;font-size:18px;}
+#tb input[type=text]{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 9px;border-radius:var(--rad);font-size:12px;width:190px;}
+#tb input::placeholder{color:rgba(255,255,255,.35);}
+#tb .sp{flex:1;}
+#tb button{padding:5px 13px;border-radius:var(--rad);font-size:11px;font-weight:700;cursor:pointer;border:none;transition:opacity .15s;}
+.btn-p{background:var(--b1);color:var(--b9);}
+.btn-s{background:rgba(255,255,255,.13);color:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.2)!important;}
+#tb button:hover{opacity:.8;}
+
+/* LAYOUT */
+#lay{display:flex;flex:1;overflow:hidden;}
+
+/* CONFIG PANEL */
+#cp{width:330px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);overflow-y:auto;padding:14px;}
+.cs{margin-bottom:18px;}
+.cs-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--g6);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;}
+.fr{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.fr label{font-size:12px;color:var(--txm);flex:1;}
+.fr input[type=number]{width:72px;flex-shrink:0;padding:4px 7px;border:1px solid var(--bds);border-radius:5px;font-size:12px;background:#fafafa;}
+.fr input:focus{outline:none;border-color:var(--b6);background:var(--b0);}
+.fu{font-size:10px;color:var(--g4);width:30px;flex-shrink:0;}
+.btn-add{font-size:11px;padding:3px 9px;background:var(--b0);color:var(--b8);border:1px solid var(--b2);border-radius:5px;cursor:pointer;font-weight:700;}
+.btn-add:hover{background:var(--b1);}
+
+/* SITE ROWS */
+.sr{background:var(--g0);border:1px solid var(--bd);border-radius:var(--rad);padding:8px 9px;margin-bottom:5px;}
+.sr.hub{border-color:var(--b2);background:var(--b0);}
+.sr-top{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.sr-top input[type=text]{flex:1;font-weight:700;font-size:12px;padding:3px 7px;border:1px solid var(--bds);border-radius:4px;}
+.sr-top input:focus{outline:none;border-color:var(--b6);}
+.hbadge{font-size:10px;background:var(--b6);color:#fff;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.brm{width:20px;height:20px;background:none;border:1px solid var(--bds);border-radius:50%;cursor:pointer;font-size:13px;color:var(--g4);line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brm:hover{background:var(--r0);border-color:var(--r6);color:var(--r6);}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;}
+.sf{display:flex;flex-direction:column;}
+.sf label{font-size:10px;color:var(--txm);margin-bottom:2px;}
+.sf input,.sf select{padding:3px 6px;border:1px solid var(--bds);border-radius:4px;font-size:12px;background:#fff;}
+.sf input:focus,.sf select:focus{outline:none;border-color:var(--b6);}
+.htog{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11px;color:var(--txm);}
+.htog input{width:auto;cursor:pointer;}
+
+/* REPORT PANEL */
+#rp{flex:1;overflow-y:auto;padding:22px 26px;background:#ebebde;}
+
+/* REPORT DOCUMENT */
+.rpt{max-width:880px;background:#fff;border-radius:var(--radl);padding:34px 38px;margin:0 auto;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.rh{border-bottom:2px solid var(--b6);padding-bottom:16px;margin-bottom:28px;}
+.rh h1{font-size:19px;font-weight:700;color:var(--b9);margin-bottom:3px;}
+.rh .meta{font-size:11px;color:var(--txm);margin-top:7px;display:flex;gap:18px;flex-wrap:wrap;}
+.rpt h2{font-size:14px;font-weight:700;color:var(--b9);margin:32px 0 11px;padding-bottom:5px;border-bottom:1px solid var(--bd);}
+.rpt h3{font-size:13px;font-weight:700;color:var(--g8);margin:18px 0 7px;}
+.rpt p{font-size:13px;margin-bottom:8px;line-height:1.6;}
+.rpt ul{margin:5px 0 9px 17px;}.rpt li{font-size:13px;margin-bottom:3px;}
+.cl{border-radius:var(--rad);padding:9px 13px;margin:11px 0;font-size:12px;line-height:1.5;}
+.cl strong{display:block;margin-bottom:2px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;}
+.ci{background:var(--b0);border-left:3px solid var(--b6);color:var(--b9);}
+.ci strong{color:var(--b8);}
+.co{background:var(--t0);border-left:3px solid var(--t6);color:var(--t8);}
+.co strong{color:var(--t8);}
+.cw{background:var(--a0);border-left:3px solid var(--a2);color:var(--a8);}
+.cw strong{color:var(--a8);}
+.cd{background:var(--r0);border-left:3px solid var(--r6);color:var(--r8);}
+.cd strong{color:var(--r8);}
+.tw{overflow-x:auto;margin:11px 0;border-radius:var(--rad);border:1px solid var(--bd);}
+.tw table{width:100%;border-collapse:collapse;font-size:12px;}
+.tw th{background:var(--g0);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--g6);padding:7px 11px;text-align:left;border-bottom:1px solid var(--bds);white-space:nowrap;}
+.tw td{padding:6px 11px;border-bottom:1px solid var(--bd);vertical-align:top;}
+.tw tr:last-child td{border-bottom:none;}
+.tw tr:nth-child(even) td{background:var(--g0);}
+td.ok{color:var(--t6);font-weight:700;}
+td.wn{color:var(--a8);font-weight:700;}
+td.bd{color:var(--r6);font-weight:700;}
+td.nm{font-variant-numeric:tabular-nums;font-weight:600;}
+td.em{font-weight:700;color:var(--b8);}
+.sg2{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:11px;margin:11px 0;}
+.sc{background:var(--g0);border:1px solid var(--bd);border-radius:var(--radl);overflow:hidden;}
+.sch{padding:7px 11px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.sch-bl{background:var(--b6);color:#fff;}
+.sch-tl{background:var(--t6);color:#fff;}
+.sch-am{background:var(--a0);color:var(--a8);}
+.scb{padding:9px 11px;}
+.scr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd);font-size:12px;}
+.scr:last-child{border-bottom:none;}
+.scrl{color:var(--txm);}
+.scrv{font-weight:700;}
+.rf{margin-top:36px;padding-top:14px;border-top:1px solid var(--bd);font-size:11px;color:var(--txm);display:flex;justify-content:space-between;}
+
+/* PRINT */
+@media print{
+  #tb,#cp{display:none!important;}
+  #app,#lay{display:block;height:auto;}
+  #rp{overflow:visible;padding:0;background:#fff;}
+  .rpt{box-shadow:none;max-width:none;padding:20px;}
+  body{background:#fff;}
+  .rpt h2{page-break-before:auto;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="tb">
+  <h1>⚙ Veeam Infrastructure Sizing Calculator</h1>
+  <span class="tsep">|</span>
+  <input type="text" id="in-cust" placeholder="Customer Name" value="New Customer" oninput="S.customerName=this.value;render()">
+  <input type="text" id="in-prep" placeholder="Prepared by" value="Charles Arconi" style="width:150px" oninput="S.preparedBy=this.value;render()">
+  <span class="sp"></span>
+  <button class="btn-s" onclick="doReset()">↺ Reset</button>
+  <button class="btn-s" onclick="doExport()">⬇ Export HTML</button>
+  <button class="btn-p" onclick="window.print()">⎙ Print / PDF</button>
+</div>
+
+<div id="lay">
+  <div id="cp">
+
+    <div class="cs">
+      <div class="cs-h">VM Size Tiers</div>
+      <p style="font-size:10px;color:var(--g4);margin:-3px 0 7px;line-height:1.4">VM counts are entered per site against these three tiers. Large VMs typically change more slowly by percentage, so each tier carries its own change rate.</p>
+      <div class="fr"><label>Small &mdash; avg size</label><input type="number" id="g-smg" min="1" max="100000" value="40" oninput="ug('smGB',+this.value)"><span class="fu">GB</span></div>
+      <div class="fr"><label>Small &mdash; change rate</label><input type="number" id="g-smc" min="1" max="50" value="5" oninput="ug('smChg',+this.value)"><span class="fu">%</span></div>
+      <div class="fr" style="margin-top:5px"><label>Medium &mdash; avg size</label><input type="number" id="g-mdg" min="1" max="100000" value="500" oninput="ug('mdGB',+this.value)"><span class="fu">GB</span></div>
+      <div class="fr"><label>Medium &mdash; change rate</label><input type="number" id="g-mdc" min="1" max="50" value="3" oninput="ug('mdChg',+this.value)"><span class="fu">%</span></div>
+      <div class="fr" style="margin-top:5px"><label>Large &mdash; avg size</label><input type="number" id="g-lgg" min="1" max="100000" value="5000" oninput="ug('lgGB',+this.value)"><span class="fu">GB</span></div>
+      <div class="fr"><label>Large &mdash; change rate</label><input type="number" id="g-lgc" min="1" max="50" value="2" oninput="ug('lgChg',+this.value)"><span class="fu">%</span></div>
+    </div>
+
+    <div class="cs">
+      <div class="cs-h">Global Assumptions</div>
+      <div class="fr"><label>Compression ratio</label><input type="number" id="g-co" min="10" max="90" value="50" oninput="ug('comprPct',+this.value)"><span class="fu">%</span></div>
+      <div class="fr"><label>Backup window</label><input type="number" id="g-bw" min="1" max="24" value="8" oninput="ug('bwHrs',+this.value)"><span class="fu">hrs</span></div>
+      <div class="fr"><label>Concurrent tasks / host</label><input type="number" id="g-ct" min="1" max="16" value="4" oninput="ug('concTasks',+this.value)"><span class="fu"></span></div>
+      <div class="fr" style="margin-top:4px"><label>Repository type</label>
+        <select id="g-bc" style="flex:0 0 auto;width:auto;padding:4px 7px;border:1px solid var(--bds);border-radius:5px;font-size:11px;background:#fafafa" onchange="ug('blockClone',this.value==='1')">
+          <option value="1" selected>Block cloning (ReFS/XFS)</option>
+          <option value="0">Independent fulls</option>
+        </select></div>
+      <div class="fr" style="margin-top:4px"><label>VMware proxy OS</label>
+        <select id="g-px" style="flex:0 0 auto;width:auto;padding:4px 7px;border:1px solid var(--bds);border-radius:5px;font-size:11px;background:#fafafa" onchange="ug('proxyOS',this.value)">
+          <option value="via" selected>Linux VIA (JeOS)</option>
+          <option value="lin">Linux (self-deployed)</option>
+          <option value="win">Windows Server</option>
+        </select></div>
+    </div>
+
+    <div class="cs">
+      <div class="cs-h">Retention Policy (GFS)</div>
+      <div class="fr"><label>Daily restore points</label><input type="number" id="g-rd" min="1" max="365" value="14" oninput="ug('retD',+this.value)"><span class="fu">days</span></div>
+      <div class="fr"><label>Weekly restore points</label><input type="number" id="g-rw" min="0" max="52" value="4" oninput="ug('retW',+this.value)"><span class="fu">wks</span></div>
+      <div class="fr"><label>Monthly restore points</label><input type="number" id="g-rm" min="0" max="60" value="3" oninput="ug('retM',+this.value)"><span class="fu">mo</span></div>
+    </div>
+
+    <div class="cs">
+      <div class="cs-h">Sites <button class="btn-add" onclick="addSite()">+ Add Site</button></div>
+      <div id="sl"></div>
+      <p style="font-size:10px;color:var(--g4);margin-top:5px;">Check "VBR Hub" on the site hosting the backup server.</p>
+    </div>
+
+  </div>
+
+  <div id="rp">
+    <div class="rpt" id="rc"></div>
+  </div>
+</div>
+</div>
+
+<script>
+var S = {
+  customerName:'New Customer', preparedBy:'Charles Arconi',
+  g:{smGB:40,smChg:5,mdGB:500,mdChg:3,lgGB:5000,lgChg:2,
+     comprPct:50,bwHrs:8,concTasks:4,retD:14,retW:4,retM:3,blockClone:true,proxyOS:'via'},
+  sites:[
+    {id:1,name:'Hub Site',hvHosts:3,vmwHosts:0,sm:28,md:2,lg:0,bw:1000,isHub:true},
+    {id:2,name:'Site 2',hvHosts:0,vmwHosts:2,sm:18,md:2,lg:0,bw:1000,isHub:false},
+    {id:3,name:'Site 3',hvHosts:1,vmwHosts:1,sm:8,md:1,lg:1,bw:250,isHub:false},
+  ],
+  nid:4
+};
+
+function ug(k,v){S.g[k]=v;renderSitesList();render();}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function r1(n){return Math.round(n*10)/10;}
+function r2(n){return Math.round(n*100)/100;}
+function fmtN(n){return Number(n).toLocaleString();}
+function fmtSize(gb){return gb>=1024?r1(gb/1024)+' TB':Math.round(gb)+' GB';}
+function proxyOSName(o){return o==='win'?'Windows Server 2019/2022':o==='lin'?'Linux (Ubuntu 22.04/24.04 LTS or Rocky 9.4+)':'Veeam Infrastructure Appliance (Linux JeOS)';}
+
+function tiersOf(s,g){
+  return [
+    {k:'sm',label:'Small',n:Math.max(0,s.sm||0),gb:Math.max(1,g.smGB),chg:g.smChg/100},
+    {k:'md',label:'Medium',n:Math.max(0,s.md||0),gb:Math.max(1,g.mdGB),chg:g.mdChg/100},
+    {k:'lg',label:'Large',n:Math.max(0,s.lg||0),gb:Math.max(1,g.lgGB),chg:g.lgChg/100}
+  ];
+}
+
+function calcSite(s,g){
+  var cr=g.comprPct/100;
+  var T=tiersOf(s,g);
+  var vms=T.reduce(function(a,t){return a+t.n;},0);
+  var srcGB=T.reduce(function(a,t){return a+t.n*t.gb;},0);
+  var chgGB=T.reduce(function(a,t){return a+t.n*t.gb*t.chg;},0);
+  var effChg=srcGB>0?chgGB/srcGB:0;
+
+  // Storage: computed per tier, then summed. Each tier carries its own change
+  // rate, so a 5 TB file server at 2% no longer inherits a 40 GB VM's 5%.
+  var repoClone=0, repoFull=0;
+  T.forEach(function(t){
+    if(t.n<=0)return;
+    var F=t.gb*cr;                      // one full, compressed
+    var I=t.gb*t.chg*cr;                // one daily incremental, compressed
+    var wFrac=Math.min(1,t.chg*4);      // overlap-adjusted weekly delta
+    var mFrac=Math.min(1,t.chg*10);     // overlap-adjusted monthly delta
+    var chain=F+g.retD*I;               // active full + daily chain
+    repoClone+=t.n*(chain+g.retW*wFrac*F+g.retM*mFrac*F);
+    repoFull +=t.n*(chain+(g.retW+g.retM)*F);
+  });
+  var overhead=1.25;
+  var recCloneTB=Math.max(0.5,Math.ceil(repoClone/1024*overhead*2)/2);
+  var recFullTB =Math.max(0.5,Math.ceil(repoFull /1024*overhead*2)/2);
+  var rawGB=g.blockClone?repoClone:repoFull;
+  var recTB=g.blockClone?recCloneTB:recFullTB;
+
+  // Hosts and proxy model
+  var hvHosts=Math.max(0,s.hvHosts||0), vmwHosts=Math.max(0,s.vmwHosts||0);
+  var hosts=hvHosts+vmwHosts;
+  var mc=Math.max(1,hosts)*g.concTasks;
+  var rc=Math.max(2,Math.ceil(mc/3));
+  var rb=rc*4;
+  var rfsRam=Math.ceil(Math.max(0.5,recTB)*0.5);
+  var totRAM=rb+rfsRam;
+
+  // Aggregate throughput demand vs backup window
+  var bwSec=Math.max(1,g.bwHrs)*3600;
+  var srcMB=srcGB*1024;
+  var pcFull=r2(srcMB/bwSec/180);
+  var pcIncr=r2(srcMB*effChg/bwSec/80);
+
+  // Largest VM is ONE task and cannot be parallelized. This, not aggregate
+  // throughput, is what breaks the window in mixed 40 GB / 5 TB estates.
+  var present=T.filter(function(t){return t.n>0;});
+  var big=present.length?present.reduce(function(a,b){return b.gb>a.gb?b:a;}):null;
+  var maxVmGB=big?big.gb:0;
+  var maxVmChg=big?big.chg:0;
+  var maxFullHrs=r1(maxVmGB*1024/180/3600);
+  var maxIncrHrs=r1(maxVmGB*maxVmChg*1024/80/3600);
+  var windowRisk=maxFullHrs>g.bwHrs;
+
+  // VMware proxy count: cap 8 concurrent tasks per proxy VM
+  var vmwTasks=vmwHosts>0?vmwHosts*g.concTasks:0;
+  var vmwProxyCount=vmwHosts>0?Math.max(1,Math.ceil(vmwTasks/8)):0;
+  var vmwTasksPer=vmwProxyCount>0?Math.ceil(vmwTasks/vmwProxyCount):0;
+  var vmwCores=Math.max(2,vmwTasksPer);
+  // VIA has an 8 GB floor regardless of task count; others use 2 GB/task
+  var vmwRAM=g.proxyOS==='via'?Math.max(8,vmwTasksPer*2):Math.max(4,vmwTasksPer*2);
+  var vmwDisk=g.proxyOS==='via'?'2 x 120 GB':g.proxyOS==='win'?'100 GB':'60 GB';
+
+  var dWan=r1(chgGB*cr);
+  var fullGB=Math.round(srcGB*cr);
+  var usableMBps=Math.max(1,(s.bw/8)*0.8);
+  var seedHrs=r1(fullGB*1024/usableMBps/3600);
+  var thrMBps=s.bw<=250?25:100;
+  var dcMins=Math.round(dWan*1024/thrMBps/60);
+
+  return {vms,srcGB:Math.round(srcGB),srcTB:r1(srcGB/1024),effChg:r1(effChg*100),
+    tiers:T,hvHosts,vmwHosts,hosts,mc,rc,rb,rfsRam,totRAM,pcFull,pcIncr,
+    rawGB:Math.round(rawGB),recTB,recCloneTB,recFullTB,dWan,fullGB,seedHrs,dcMins,
+    maxVmGB,maxFullHrs,maxIncrHrs,windowRisk,
+    vmwProxyCount,vmwTasksPer,vmwCores,vmwRAM,vmwDisk,
+    spof:(hvHosts+vmwHosts)===1,needThrot:s.bw<=500};
+}
+
+function calcAll(){
+  var g=S.g;
+  var res=S.sites.map(function(s){return{s:s,c:calcSite(s,g)};});
+  var tv=res.reduce(function(a,r){return a+r.c.vms;},0);
+  var tsrc=r1(res.reduce(function(a,r){return a+r.c.srcGB;},0)/1024);
+  var tstg=r1(res.reduce(function(a,r){return a+r.c.recTB;},0));
+  var tdw=r1(res.reduce(function(a,r){return a+r.c.dWan;},0));
+  var hub=res.find(function(r){return r.s.isHub;})||res[0];
+  var anyHv=res.some(function(r){return r.c.hvHosts>0;});
+  var anyVmw=res.some(function(r){return r.c.vmwHosts>0;});
+  var totVmwProxies=res.reduce(function(a,r){return a+r.c.vmwProxyCount;},0);
+  var totHvHosts=res.reduce(function(a,r){return a+r.c.hvHosts;},0);
+  return{res,tv,tsrc,tstg,tdw,hub,anyHv,anyVmw,totVmwProxies,totHvHosts};
+}
+
+function fmtDate(){
+  return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function renderSitesList(){
+  var g=S.g, html='';
+  S.sites.forEach(function(s){
+    html+='<div class="sr'+(s.isHub?' hub':'')+'">'+
+      '<div class="sr-top">'+
+        '<input type="text" value="'+esc(s.name)+'" oninput="us('+s.id+',\'name\',this.value)">'+
+        (s.isHub?'<span class="hbadge">VBR Hub</span>':'')+
+        '<button class="brm" onclick="rmSite('+s.id+')" title="Remove">&times;</button>'+
+      '</div>'+
+      '<div class="sg">'+
+        '<div class="sf"><label>Hyper-V Hosts</label>'+
+          '<input type="number" min="0" max="40" value="'+(s.hvHosts||0)+'" oninput="us('+s.id+',\'hvHosts\',+this.value)"></div>'+
+        '<div class="sf"><label>ESXi Hosts</label>'+
+          '<input type="number" min="0" max="40" value="'+(s.vmwHosts||0)+'" oninput="us('+s.id+',\'vmwHosts\',+this.value)"></div>'+
+        '<div class="sf"><label>Small VMs ('+fmtSize(g.smGB)+')</label>'+
+          '<input type="number" min="0" max="5000" value="'+(s.sm||0)+'" oninput="us('+s.id+',\'sm\',+this.value)"></div>'+
+        '<div class="sf"><label>Medium VMs ('+fmtSize(g.mdGB)+')</label>'+
+          '<input type="number" min="0" max="5000" value="'+(s.md||0)+'" oninput="us('+s.id+',\'md\',+this.value)"></div>'+
+        '<div class="sf"><label>Large VMs ('+fmtSize(g.lgGB)+')</label>'+
+          '<input type="number" min="0" max="5000" value="'+(s.lg||0)+'" oninput="us('+s.id+',\'lg\',+this.value)"></div>'+
+        '<div class="sf"><label>WAN Bandwidth</label>'+
+          '<select onchange="us('+s.id+',\'bw\',+this.value)">'+
+            ['250','500','1000','2000','10000'].map(function(v){
+              return '<option value="'+v+'"'+(s.bw==v?' selected':'')+'>'+(v>=1000?v/1000+' Gbps':v+' Mbps')+'</option>';
+            }).join('')+
+          '</select></div>'+
+      '</div>'+
+      '<label class="htog"><input type="checkbox"'+(s.isHub?' checked':'')+' onchange="us('+s.id+',\'isHub\',this.checked)"> VBR Hub site</label>'+
+    '</div>';
+  });
+  document.getElementById('sl').innerHTML=html;
+}
+
+function us(id,k,v){
+  var s=S.sites.find(function(x){return x.id===id;});
+  if(!s)return;
+  if(k==='isHub'&&v===true)S.sites.forEach(function(x){x.isHub=false;});
+  s[k]=v;
+  renderSitesList();render();
+}
+function addSite(){
+  S.sites.push({id:S.nid++,name:'Site '+S.sites.length,hvHosts:2,vmwHosts:0,sm:18,md:2,lg:0,bw:1000,isHub:false});
+  renderSitesList();render();
+}
+function rmSite(id){
+  if(S.sites.length<=1)return;
+  S.sites=S.sites.filter(function(s){return s.id!==id;});
+  if(!S.sites.some(function(s){return s.isHub;}))S.sites[0].isHub=true;
+  renderSitesList();render();
+}
+
+function doReset(){
+  S.g={smGB:40,smChg:5,mdGB:500,mdChg:3,lgGB:5000,lgChg:2,
+       comprPct:50,bwHrs:8,concTasks:4,retD:14,retW:4,retM:3,blockClone:true,proxyOS:'via'};
+  S.sites=[
+    {id:1,name:'Hub Site',hvHosts:3,vmwHosts:0,sm:28,md:2,lg:0,bw:1000,isHub:true},
+    {id:2,name:'Site 2',hvHosts:0,vmwHosts:2,sm:18,md:2,lg:0,bw:1000,isHub:false},
+    {id:3,name:'Site 3',hvHosts:1,vmwHosts:1,sm:8,md:1,lg:1,bw:250,isHub:false},
+  ]; S.nid=4;
+  var map={'g-smg':40,'g-smc':5,'g-mdg':500,'g-mdc':3,'g-lgg':5000,'g-lgc':2,
+           'g-co':50,'g-bw':8,'g-ct':4,'g-rd':14,'g-rw':4,'g-rm':3};
+  Object.keys(map).forEach(function(id){var e=document.getElementById(id);if(e)e.value=map[id];});
+  document.getElementById('g-bc').value='1';
+  document.getElementById('g-px').value='via';
+  document.getElementById('in-cust').value='New Customer'; S.customerName='New Customer';
+  renderSitesList();render();
+}
+
+function render(){
+  var _=calcAll(), g=S.g, date=fmtDate();
+  var spofs=_.res.filter(function(r){return r.c.spof;}).length;
+  var needThrot=_.res.some(function(r){return r.c.needThrot;});
+  var windowRisks=_.res.filter(function(r){return r.c.windowRisk;});
+  var totalJobs=_.res.reduce(function(a,r){return a+Math.max(1,r.c.hosts)+(r.s.lg>0?1:0);},0);
+  var platLabel=_.anyHv&&_.anyVmw?'Hyper-V + VMware':_.anyHv?'Hyper-V':'VMware vSphere';
+
+  var siteRows=_.res.map(function(r){
+    var c=r.c, s=r.s;
+    var plat=c.hvHosts>0&&c.vmwHosts>0?c.hvHosts+' HV / '+c.vmwHosts+' ESXi':
+             c.hvHosts>0?c.hvHosts+' Hyper-V':c.vmwHosts+' ESXi';
+    return '<tr>'+
+      '<td class="em">'+esc(s.name)+(s.isHub?' <span style="font-size:10px;background:#185FA5;color:#fff;padding:1px 5px;border-radius:8px;font-weight:600">VBR</span>':'')+'</td>'+
+      '<td>'+plat+'</td>'+
+      '<td class="nm">'+c.vms+'</td>'+
+      '<td class="nm">'+c.srcTB+' TB</td>'+
+      '<td class="nm">'+c.effChg+'%</td>'+
+      '<td class="nm">'+c.mc+'</td>'+
+      '<td class="nm">'+c.pcFull+' / '+c.pcIncr+'</td>'+
+      '<td class="'+(c.spof?'bd':'ok')+'">'+(c.spof?'1 host - SPOF':'Redundant')+'</td>'+
+    '</tr>';
+  }).join('');
+
+  var mixRows=_.res.map(function(r){
+    var c=r.c, s=r.s;
+    return '<tr><td class="em">'+esc(s.name)+'</td>'+
+      c.tiers.map(function(t){
+        return '<td class="nm">'+(t.n>0?t.n+' &times; '+fmtSize(t.gb):'&mdash;')+'</td>';
+      }).join('')+
+      '<td class="nm">'+c.vms+'</td>'+
+      '<td class="nm">'+c.srcTB+' TB</td>'+
+      '<td class="nm">'+c.effChg+'%</td></tr>';
+  }).join('');
+
+  var proxyRows=_.res.map(function(r){
+    var c=r.c, s=r.s, out='';
+    if(c.hvHosts>0){
+      out+='<tr><td class="em">'+esc(s.name)+'</td>'+
+        '<td>Hyper-V</td>'+
+        '<td><strong>On-Host proxy</strong><br><span style="font-size:11px;color:var(--txm)">Veeam Data Mover on the host itself</span></td>'+
+        '<td class="nm">'+c.hvHosts+'</td>'+
+        '<td>Nothing to build. The role installs automatically on each Hyper-V host when it is registered in VBR.</td>'+
+        '<td>On-Host (host VSS)</td>'+
+        '<td>Reserve ~'+g.concTasks+' cores / '+(g.concTasks*2)+' GB RAM on each host</td></tr>';
+    }
+    if(c.vmwHosts>0){
+      out+='<tr><td class="em">'+esc(s.name)+'</td>'+
+        '<td>VMware</td>'+
+        '<td><strong>Dedicated proxy VM</strong><br><span style="font-size:11px;color:var(--txm)">'+esc(proxyOSName(g.proxyOS))+'</span></td>'+
+        '<td class="nm">'+c.vmwProxyCount+'</td>'+
+        '<td>Deploy as VM(s) <strong>on the ESXi cluster at this site</strong> so hot-add can reach local datastores. Never back up a remote site across the WAN from a hub proxy.</td>'+
+        '<td>Virtual Appliance (hot-add)'+(c.vmwHosts===1?'; NBD fallback':'')+'</td>'+
+        '<td>'+c.vmwCores+' vCPU / '+c.vmwRAM+' GB / '+c.vmwDisk+'<br><span style="font-size:11px;color:var(--txm)">'+c.vmwTasksPer+' tasks per proxy</span></td></tr>';
+    }
+    return out;
+  }).join('');
+
+  var repoSections=_.res.map(function(r){
+    var c=r.c, s=r.s;
+    var hc=c.hosts>=3?'sch-bl':c.hosts===2?'sch-tl':'sch-am';
+    var bwLabel=s.bw>=1000?s.bw/1000+' Gbps':s.bw+' Mbps';
+    return '<h3>'+esc(s.name)+' &mdash; '+c.hosts+' host'+(c.hosts!==1?'s':'')+' / '+c.vms+' VMs / '+c.srcTB+' TB source</h3>'+
+    '<div class="sg2">'+
+      '<div class="sc"><div class="sch '+hc+'">Repository Server</div><div class="scb">'+
+        '<div class="scr"><span class="scrl">CPU Cores</span><span class="scrv">'+c.rc+' cores</span></div>'+
+        '<div class="scr"><span class="scrl">Base RAM (repo)</span><span class="scrv">'+c.rb+' GB</span></div>'+
+        '<div class="scr"><span class="scrl">ReFS RAM (+0.5 GB/TB)</span><span class="scrv">+'+c.rfsRam+' GB</span></div>'+
+        '<div class="scr"><span class="scrl">Total RAM</span><span class="scrv">'+c.totRAM+' GB</span></div>'+
+      '</div></div>'+
+      '<div class="sc"><div class="sch '+hc+'">Storage</div><div class="scb">'+
+        '<div class="scr"><span class="scrl">Source data</span><span class="scrv">'+c.srcTB+' TB</span></div>'+
+        '<div class="scr"><span class="scrl">Block cloning (ReFS/XFS)</span><span class="scrv"'+(g.blockClone?' style="color:var(--b8)"':'')+'>'+c.recCloneTB+' TB</span></div>'+
+        '<div class="scr"><span class="scrl">Independent fulls</span><span class="scrv"'+(!g.blockClone?' style="color:var(--b8)"':' style="color:var(--g4);font-weight:400"')+'>'+c.recFullTB+' TB</span></div>'+
+        '<div class="scr"><span class="scrl"><strong>Recommended (usable)</strong></span><span class="scrv" style="color:var(--b8)">'+c.recTB+' TB</span></div>'+
+        '<div class="scr"><span class="scrl">Filesystem</span><span class="scrv">'+(g.blockClone?'ReFS 64K / XFS reflink':'NTFS / appliance')+'</span></div>'+
+      '</div></div>'+
+      '<div class="sc"><div class="sch '+hc+'">Cloud Copy to VDC</div><div class="scb">'+
+        '<div class="scr"><span class="scrl">Full backup size</span><span class="scrv">'+fmtN(c.fullGB)+' GB</span></div>'+
+        '<div class="scr"><span class="scrl">Daily incremental</span><span class="scrv">'+c.dWan+' GB</span></div>'+
+        '<div class="scr"><span class="scrl">Initial seed time</span><span class="scrv">'+c.seedHrs+' hrs @ '+bwLabel+'</span></div>'+
+        '<div class="scr"><span class="scrl">Daily copy time</span><span class="scrv">~'+c.dcMins+' min (throttled)</span></div>'+
+      '</div></div>'+
+    '</div>';
+  }).join('');
+
+  var bwRows=_.res.map(function(r){
+    var c=r.c, s=r.s;
+    return '<tr>'+
+      '<td class="em">'+esc(s.name)+'</td>'+
+      '<td class="nm">'+(s.bw>=1000?s.bw/1000+' Gbps':s.bw+' Mbps')+'</td>'+
+      '<td class="nm">'+c.dWan+' GB</td>'+
+      '<td class="nm">~'+c.dcMins+' min</td>'+
+      '<td class="nm">'+c.seedHrs+' hrs</td>'+
+      '<td class="'+(c.needThrot?'wn':'ok')+'">'+(c.needThrot?'Set throttle rule':'Optional')+'</td>'+
+    '</tr>';
+  }).join('');
+
+  var jobRows=_.res.map(function(r,i){
+    var rows='';
+    if(r.c.hvHosts>0){
+      rows+='<tr><td>Backup &mdash; '+esc(r.s.name)+' (Hyper-V)</td>'+
+        '<td>'+r.c.hvHosts+' host'+(r.c.hvHosts!==1?'s':'')+', standard VMs</td>'+
+        '<td>'+esc(r.s.name)+' local repo</td>'+
+        '<td>Daily 10 PM'+(S.sites.length>1?' (stagger '+(i*10)+' min)':'')+'</td>'+
+        '<td>'+g.retD+'d / '+g.retW+'w / '+g.retM+'m GFS</td></tr>';
+    }
+    if(r.c.vmwHosts>0){
+      rows+='<tr><td>Backup &mdash; '+esc(r.s.name)+' (VMware)</td>'+
+        '<td>'+r.c.vmwHosts+' ESXi host'+(r.c.vmwHosts!==1?'s':'')+', standard VMs</td>'+
+        '<td>'+esc(r.s.name)+' local repo</td>'+
+        '<td>Daily 10 PM'+(S.sites.length>1?' (stagger '+(i*10+5)+' min)':'')+'</td>'+
+        '<td>'+g.retD+'d / '+g.retW+'w / '+g.retM+'m GFS</td></tr>';
+    }
+    if(r.s.lg>0){
+      rows+='<tr><td>Backup &mdash; '+esc(r.s.name)+' (Large VMs)</td>'+
+        '<td>'+r.s.lg+' VM'+(r.s.lg!==1?'s':'')+' @ '+fmtSize(g.lgGB)+' each</td>'+
+        '<td>'+esc(r.s.name)+' local repo</td>'+
+        '<td>Start first (8 PM) &mdash; longest runtime</td>'+
+        '<td>'+g.retD+'d / '+g.retW+'w / '+g.retM+'m GFS</td></tr>';
+    }
+    return rows;
+  }).join('')+
+  _.res.map(function(r){
+    return '<tr><td>Backup Copy &mdash; '+esc(r.s.name)+' to VDC</td>'+
+      '<td>'+esc(r.s.name)+' local repo</td><td>Veeam Data Cloud</td>'+
+      '<td>Immediate after backup</td><td>30d / 12m (recommended)</td></tr>';
+  }).join('')+
+  '<tr><td>VBR Config Backup</td><td>VBR configuration</td><td>Local repo + VDC</td><td>Daily after jobs complete</td><td>10 restore points</td></tr>';
+
+  var spofWarning=spofs>0?
+    '<div class="cl cd"><strong>'+spofs+' Single-Host Site'+(spofs>1?'s':'')+' &mdash; Proxy SPOF Risk</strong>'+
+    'Sites with only one host have a single point of failure for the proxy role. On Hyper-V the On-Host proxy dies with the host; on VMware the hot-add proxy VM has nowhere else to run. '+
+    'Where a second host exists, place a standby proxy on it. Where it does not, accept the risk explicitly in the design or add a small physical proxy.</div>':'';
+
+  var windowWarning=windowRisks.length>0?
+    '<div class="cl cw"><strong>Backup Window Risk &mdash; Large VM Serialization</strong>'+
+    'At '+windowRisks.map(function(r){return esc(r.s.name);}).join(', ')+', the largest VM ('+fmtSize(windowRisks[0].c.maxVmGB)+') needs about '+
+    windowRisks[0].c.maxFullHrs+' hrs for a full read at 180 MB/s, against a '+g.bwHrs+' hr window. '+
+    'A single VM is a single task and cannot be split across proxies, so adding proxies will not fix this. '+
+    'Options: run active fulls for large VMs on weekends only, rely on forever-forward incrementals (about '+windowRisks[0].c.maxIncrHrs+' hrs at the configured change rate), '+
+    'split large VMs across multiple virtual disks so per-disk parallel processing applies, or use storage snapshot integration.</div>':'';
+
+  document.getElementById('rc').innerHTML=
+  '<div class="rh">'+
+    '<h1>Veeam Backup &amp; Replication &mdash; Infrastructure Design</h1>'+
+    '<p style="font-size:13px;color:var(--txm);margin-top:3px;">'+esc(S.customerName)+' &mdash; Prepared by '+esc(S.preparedBy)+'</p>'+
+    '<div class="meta">'+
+      '<span>Platform: '+platLabel+'</span>'+
+      '<span>Sites: '+S.sites.length+'</span>'+
+      '<span>VMs: ~'+fmtN(_.tv)+'</span>'+
+      '<span>Source: ~'+_.tsrc+' TB</span>'+
+      '<span>Cloud: Veeam Data Cloud</span>'+
+      '<span>'+date+'</span>'+
+    '</div>'+
+  '</div>'+
+
+  '<h2>1. Environment Summary</h2>'+
+  '<div class="tw"><table><thead><tr><th>Parameter</th><th>Value</th><th>Notes / Validate With</th></tr></thead><tbody>'+
+    '<tr><td>Total sites</td><td class="nm">'+S.sites.length+'</td><td>One designated VBR hub</td></tr>'+
+    '<tr><td>Hypervisor platforms</td><td class="nm">'+platLabel+'</td><td>'+_.totHvHosts+' Hyper-V host(s), '+_.res.reduce(function(a,r){return a+r.c.vmwHosts;},0)+' ESXi host(s)</td></tr>'+
+    '<tr><td>Total VMs</td><td class="nm">~'+fmtN(_.tv)+'</td><td>'+_.res.map(function(r){return esc(r.s.name)+': '+r.c.vms;}).join(' | ')+'</td></tr>'+
+    '<tr><td>Total source data</td><td class="nm">~'+_.tsrc+' TB</td><td>Sum of all size tiers across all sites</td></tr>'+
+    '<tr><td>VM size tiers</td><td class="nm">'+fmtSize(g.smGB)+' / '+fmtSize(g.mdGB)+' / '+fmtSize(g.lgGB)+'</td><td>Small / Medium / Large averages &mdash; see section 2</td></tr>'+
+    '<tr><td>Change rate by tier</td><td class="nm">'+g.smChg+'% / '+g.mdChg+'% / '+g.lgChg+'%</td><td>Validate with a pilot; large VMs usually change less by percentage</td></tr>'+
+    '<tr><td>Compression ratio</td><td class="nm">'+g.comprPct+'%</td><td>Run pilot backup; check session stats</td></tr>'+
+    '<tr><td>Backup window</td><td class="nm">'+g.bwHrs+' hours</td><td>Nightly incremental</td></tr>'+
+    '<tr><td>Concurrent tasks / host</td><td class="nm">'+g.concTasks+'</td><td>Tune down on hosts with heavy production load</td></tr>'+
+    '<tr><td>Retention (GFS)</td><td class="nm">'+g.retD+'d / '+g.retW+'w / '+g.retM+'m</td><td>Adjust to customer SLA requirements</td></tr>'+
+    '<tr><td>VBR instances required</td><td class="nm ok">1</td><td>At ~'+fmtN(_.tv)+' VMs &mdash; well under the 5,000 VM multi-instance threshold</td></tr>'+
+    '<tr><td>Database</td><td>PostgreSQL (local)</td><td>Appropriate for under 5,000 VMs &mdash; no SQL Server license needed</td></tr>'+
+  '</tbody></table></div>'+
+  spofWarning+
+
+  '<h2>2. VM Size Profile</h2>'+
+  '<p>VM sizes are modelled in three tiers rather than a single average. A flat average badly misrepresents an estate that ranges from 40 GB application servers to multi-TB file and database servers: it overstates storage for the many small VMs and understates the backup window impact of the few large ones. Each tier carries its own daily change rate, since large VMs typically change far less as a percentage of their size.</p>'+
+  '<div class="tw"><table><thead><tr><th>Site</th><th>Small</th><th>Medium</th><th>Large</th><th>Total VMs</th><th>Source Data</th><th>Weighted Change</th></tr></thead><tbody>'+
+  mixRows+'</tbody></table></div>'+
+  '<p style="font-size:11px;color:var(--g4)">Weighted change rate is the blended daily change across all tiers at that site, which is what drives incremental size and WAN transfer. Validate tier membership with <code>Get-VM | Get-VHD</code> (Hyper-V) or a vSphere provisioned-space report, and use <em>used</em> disk space rather than provisioned.</p>'+
+  windowWarning+
+
+  '<h2>3. Proxy Deployment Plan</h2>'+
+  '<p>This section defines what proxy components to deploy, how many, and where they physically sit. The two hypervisors use fundamentally different proxy models, so a mixed estate needs both approaches running side by side.</p>'+
+  '<div class="tw"><table><thead><tr><th>Site</th><th>Platform</th><th>Proxy Role</th><th>Qty</th><th>Placement</th><th>Transport Mode</th><th>Sizing (each)</th></tr></thead><tbody>'+
+  proxyRows+'</tbody></table></div>'+
+  (_.anyHv?
+    '<div class="cl co"><strong>Hyper-V &mdash; On-Host Proxy (no VMs to deploy)</strong>'+
+    'When a Hyper-V host is registered in VBR, the On-Host proxy role installs automatically on that host. There are no separate proxy VMs to build, size, or license. '+
+    'Data is read locally through host VSS and sent straight to the repository. The cost is that backup processing consumes host CPU and RAM, so reserve roughly '+g.concTasks+' cores and '+(g.concTasks*2)+' GB per host, and reduce concurrent tasks on hosts already running hot. '+
+    'Off-Host mode is the alternative but requires a hardware VSS provider and shared storage, which is rarely worth the complexity at this scale.</div>':'')+
+  (_.anyVmw?
+    '<div class="cl ci"><strong>VMware &mdash; Dedicated Proxy VMs Required</strong>'+
+    'VMware has no equivalent of On-Host mode. Every site with ESXi hosts needs at least one dedicated backup proxy, deployed as a VM on the cluster it protects. '+
+    'Total to deploy across all sites: <strong>'+_.totVmwProxies+' proxy VM'+(_.totVmwProxies!==1?'s':'')+'</strong>. '+
+    'Recommended OS is '+esc(proxyOSName(g.proxyOS))+'. '+
+    (g.proxyOS==='via'?'The VIA path gives certificate-based authentication, centrally managed updates from the VBR server, and no Windows licensing at the edge. Note the appliance floor of 8 GB RAM and 2 x 120 GB disks, which is higher than a lean self-built Linux proxy. Download it from the Additional Downloads tab of the Veeam Software Appliance section, or via KB4738.':'')+
+    (g.proxyOS==='lin'?'Self-deployed Linux avoids the VIA resource floor and can be shared between multiple VBR servers, which VIA cannot. On RHEL/Rocky 9 pre-install aspnetcore-runtime 8.0+, bindfs, samba-client and ntfs-3g, plus EPEL for libmsi1.':'')+
+    (g.proxyOS==='win'?'Windows proxies remain supported and are required if you need VM Copy scenarios, but carry licensing cost and a larger attack surface at remote sites.':'')+
+    '</div>':'')+
+  (_.anyVmw?
+    '<div class="cl cw"><strong>VMware Proxy Placement Rules</strong>'+
+    'Place proxies local to the data they read. A hub proxy reading a remote site over the WAN pulls raw uncompressed blocks across the link and will not finish in any reasonable window. '+
+    'For hot-add the proxy VM needs VMware Tools installed, a SCSI controller, and visibility of the datastores holding the source VMs. '+
+    'Confirm DNS resolution of vCenter and ESXi names from each proxy, otherwise jobs fail with NFC storage connection errors. '+
+    'Use Direct SAN only where the site genuinely has shared FC or iSCSI storage; single-host remote sites on local disk should use hot-add with NBD as fallback.</div>':'')+
+  (_.anyHv&&_.anyVmw?
+    '<div class="cl ci"><strong>Mixed Estate &mdash; Keep Jobs Separated by Hypervisor</strong>'+
+    'A single backup job cannot span Hyper-V and VMware workloads. Build separate job sets per platform at each mixed site, targeting the same repository. '+
+    'This is reflected in the job design table in section 7.</div>':'')+
+  '<p style="font-size:11px;color:var(--g4)">Proxy throughput basis: 180 MB/s per core for full backups, 80 MB/s per core for incrementals. VMware proxy count assumes a ceiling of 8 concurrent tasks per proxy VM; RAM is 2 GB per task with a floor set by the chosen OS. At this VM density, proxy CPU is rarely the bottleneck &mdash; concurrent task count and large-VM serialization are the real constraints.</p>'+
+
+  '<h2>4. VBR Server &mdash; '+esc(_.hub.s.name)+'</h2>'+
+  '<p>Single VBR instance at <strong>'+esc(_.hub.s.name)+'</strong> manages all '+S.sites.length+' sites. PostgreSQL is appropriate for ~'+fmtN(_.tv)+' total VMs.</p>'+
+  '<div class="sg2">'+
+    '<div class="sc"><div class="sch sch-bl">VBR Server &mdash; Minimum</div><div class="scb">'+
+      '<div class="scr"><span class="scrl">vCPUs</span><span class="scrv">4 vCPUs</span></div>'+
+      '<div class="scr"><span class="scrl">RAM</span><span class="scrv">8 GB</span></div>'+
+      '<div class="scr"><span class="scrl">OS Drive</span><span class="scrv">100 GB SSD</span></div>'+
+      '<div class="scr"><span class="scrl">Database</span><span class="scrv">PostgreSQL</span></div>'+
+    '</div></div>'+
+    '<div class="sc"><div class="sch sch-tl">VBR Server &mdash; Recommended</div><div class="scb">'+
+      '<div class="scr"><span class="scrl">vCPUs</span><span class="scrv">8 vCPUs</span></div>'+
+      '<div class="scr"><span class="scrl">RAM</span><span class="scrv">16 GB</span></div>'+
+      '<div class="scr"><span class="scrl">OS Drive</span><span class="scrv">150 GB SSD</span></div>'+
+      '<div class="scr"><span class="scrl">Database</span><span class="scrv">PostgreSQL</span></div>'+
+    '</div></div>'+
+  '</div>'+
+
+  '<h2>5. Repository Sizing &mdash; Per Site</h2>'+
+  '<p>Compute: 1 repo core per 3 proxy concurrent tasks; 4 GB RAM per core; ReFS overhead +0.5 GB per TB of repo storage. Storage model: each site holds one active full plus '+g.retD+' daily incrementals, plus '+g.retW+' weekly and '+g.retM+' monthly GFS fulls, calculated separately for each VM size tier and then summed. A 25% factor is added for free space and working/index space, rounded up to the nearest 0.5 TB.</p>'+
+  (g.blockClone?
+    '<div class="cl ci"><strong>Storage Model: Block Cloning (ReFS / XFS Fast Clone)</strong>Synthetic and GFS full backups are stored as changed blocks only, not full copies. Weekly and monthly restore points therefore consume a fraction of a full, calculated per tier from that tier own change rate. This is the correct model for the ReFS 64K / XFS reflink repositories recommended here and is what the Recommended (usable) figure uses. The grey Independent fulls figure is the non-clone worst case shown for comparison.</div>'
+    :
+    '<div class="cl cw"><strong>Storage Model: Independent Fulls (No Block Cloning)</strong>Every weekly and monthly GFS restore point is stored as a complete full backup copy. Use this only for plain NTFS repositories or dedup appliances (StoreOnce, Data Domain, ExaGrid) where Veeam fast clone is not in play. On a ReFS/XFS repository this over-provisions storage by roughly 2x, so switch Repository Type to Block Cloning for the realistic figure.</div>')+
+  repoSections+
+
+  '<h2>6. Bandwidth Planning</h2>'+
+  '<p>Primary backups are written to local storage at each site, so they place no load on the WAN. Only backup copy jobs to Veeam Data Cloud use the uplink. Total daily incremental across all '+S.sites.length+' sites: <strong>'+_.tdw+' GB/day</strong>.</p>'+
+  '<div class="tw"><table><thead><tr><th>Site</th><th>WAN</th><th>Daily Incr. to VDC</th><th>Copy Time (throttled)</th><th>Initial Seed</th><th>Throttle Rule?</th></tr></thead><tbody>'+
+  bwRows+'</tbody></table></div>'+
+  (needThrot?'<div class="cl cw"><strong>Throttling Required at One or More Sites</strong>Define a Veeam Global Network Traffic Throttling rule: cap to 25-50 Mbps during business hours (8 AM to 8 PM), full bandwidth off-peak. Schedule backup copy jobs to start after primary backup completes (~2 AM).</div>':'')+
+
+  '<h2>7. Job Design</h2>'+
+  '<div class="tw"><table><thead><tr><th>Job</th><th>Scope</th><th>Target</th><th>Schedule</th><th>Retention</th></tr></thead><tbody>'+
+  jobRows+'</tbody></table></div>'+
+  '<p>Job separation follows three rules: one job set per hypervisor platform (a job cannot mix Hyper-V and VMware), scoped per site to its local repository, and <strong>large VMs isolated into their own jobs</strong>. Isolating the large VMs matters most: a multi-TB VM in a shared job holds the whole job open and delays its GFS full for every other VM in it. Estimated jobs: <strong>~'+totalJobs+'</strong>.</p>'+
+
+  '<h2>8. 3-2-1 Compliance</h2>'+
+  '<div class="tw"><table><thead><tr><th>Rule</th><th>Requirement</th><th>How Met</th><th>Status</th></tr></thead><tbody>'+
+    '<tr><td><strong>3 copies</strong></td><td>Three copies of data</td><td>Production VM + Local backup repo (each site) + Veeam Data Cloud</td><td class="ok">Met</td></tr>'+
+    '<tr><td><strong>2 media types</strong></td><td>Two different storage media</td><td>Block storage (repo server) + Object storage (VDC)</td><td class="ok">Met</td></tr>'+
+    '<tr><td><strong>1 offsite copy</strong></td><td>One copy offsite</td><td>Veeam Data Cloud is geographically separate from all '+S.sites.length+' sites</td><td class="ok">Met</td></tr>'+
+  '</tbody></table></div>'+
+
+  '<h2>9. Overall Summary</h2>'+
+  '<div class="tw"><table><thead><tr><th>Metric</th><th>Value</th><th>Notes</th></tr></thead><tbody>'+
+    '<tr><td>VBR instances</td><td class="nm ok">1</td><td>Single instance is appropriate at ~'+fmtN(_.tv)+' VMs</td></tr>'+
+    '<tr><td>Total VMs protected</td><td class="nm">~'+fmtN(_.tv)+'</td><td>'+_.res.map(function(r){return esc(r.s.name)+': '+r.c.vms;}).join(' | ')+'</td></tr>'+
+    '<tr><td>Total source data</td><td class="nm">~'+_.tsrc+' TB</td><td>Across all size tiers and sites</td></tr>'+
+    '<tr><td>Hyper-V On-Host proxies</td><td class="nm">'+_.totHvHosts+'</td><td>'+(_.totHvHosts>0?'Automatic on host registration &mdash; nothing to deploy':'No Hyper-V hosts in scope')+'</td></tr>'+
+    '<tr><td>VMware proxy VMs to deploy</td><td class="nm">'+_.totVmwProxies+'</td><td>'+(_.totVmwProxies>0?esc(proxyOSName(g.proxyOS))+', placed at each VMware site':'No ESXi hosts in scope')+'</td></tr>'+
+    '<tr><td>Repository servers</td><td class="nm">'+S.sites.length+' (one per site)</td><td>'+(g.blockClone?'ReFS 64K or XFS reflink required for the sizing below':'Non-clone target assumed')+'</td></tr>'+
+    '<tr><td>Total repo storage (usable)</td><td class="nm">~'+_.tstg+' TB</td><td>Combined across all '+S.sites.length+' sites</td></tr>'+
+    '<tr><td>Daily WAN to VDC (total)</td><td class="nm">~'+_.tdw+' GB/day</td><td>Incremental backup copies only; primaries are LAN-only</td></tr>'+
+    '<tr><td>Backup jobs</td><td class="nm">~'+totalJobs+'</td><td>Split by platform, site, and large-VM isolation</td></tr>'+
+    '<tr><td>Backup copy jobs (VDC)</td><td class="nm">'+S.sites.length+'</td><td>1 per site repository</td></tr>'+
+    '<tr><td>Backup window risk</td>'+
+      '<td class="'+(windowRisks.length>0?'wn':'ok')+'">'+(windowRisks.length>0?windowRisks.length+' site(s)':'None')+'</td>'+
+      '<td>'+(windowRisks.length>0?'Largest VM full read exceeds the '+g.bwHrs+' hr window &mdash; see section 2':'All sites fit the '+g.bwHrs+' hr window')+'</td></tr>'+
+    '<tr><td>SPOF risk sites</td>'+
+      '<td class="'+(spofs>0?'bd':'ok')+'">'+(spofs>0?spofs+' site(s)':'None')+'</td>'+
+      '<td>'+(spofs>0?'Single-host sites have no proxy redundancy':'All sites have 2 or more hosts')+'</td></tr>'+
+    '<tr><td>Throttle rules needed</td>'+
+      '<td class="'+(needThrot?'wn':'ok')+'">'+(needThrot?'Yes':'No')+'</td>'+
+      '<td>'+(needThrot?'Configure Global Network Traffic Rules in VBR':'All sites 1 Gbps or better')+'</td></tr>'+
+  '</tbody></table></div>'+
+
+  '<div class="rf">'+
+    '<span>'+esc(S.preparedBy)+' &mdash; m365admintools.com</span>'+
+    '<span>Based on Veeam BP Guide | bp.veeam.com/vbr | '+date+'</span>'+
+  '</div>';
+}
+
+function getReportCSS(){
+  return '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}:root{--b9:#042C53;--b8:#0C447C;--b6:#185FA5;--b2:#85B7EB;--b1:#B5D4F4;--b0:#E6F1FB;--t8:#085041;--t6:#0F6E56;--t0:#E1F5EE;--a8:#633806;--a2:#EF9F27;--a0:#FAEEDA;--r8:#791F1F;--r6:#A32D2D;--r0:#FCEBEB;--g9:#2C2C2A;--g8:#444441;--g6:#5F5E5A;--g4:#888780;--g2:#B4B2A9;--g1:#D3D1C7;--g0:#F1EFE8;--tx:#1a1a19;--txm:#5F5E5A;--bd:rgba(0,0,0,.12);--bds:rgba(0,0,0,.22);--rad:8px;--radl:12px;}body{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;font-size:13px;line-height:1.5;color:var(--tx);background:#ebebde;padding:24px;}.rpt{max-width:880px;background:#fff;border-radius:var(--radl);padding:34px 38px;margin:0 auto;box-shadow:0 1px 4px rgba(0,0,0,.08);}.rh{border-bottom:2px solid var(--b6);padding-bottom:16px;margin-bottom:28px;}.rh h1{font-size:19px;font-weight:700;color:var(--b9);margin-bottom:3px;}.rh .meta{font-size:11px;color:var(--txm);margin-top:7px;display:flex;gap:18px;flex-wrap:wrap;}.rpt h2{font-size:14px;font-weight:700;color:var(--b9);margin:32px 0 11px;padding-bottom:5px;border-bottom:1px solid var(--bd);}.rpt h3{font-size:13px;font-weight:700;color:var(--g8);margin:18px 0 7px;}.rpt p{font-size:13px;margin-bottom:8px;line-height:1.6;}.rpt ul{margin:5px 0 9px 17px;}.rpt li{font-size:13px;margin-bottom:3px;}.cl{border-radius:var(--rad);padding:9px 13px;margin:11px 0;font-size:12px;line-height:1.5;}.cl strong{display:block;margin-bottom:2px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;}.ci{background:var(--b0);border-left:3px solid var(--b6);color:var(--b9);}.ci strong{color:var(--b8);}.co{background:var(--t0);border-left:3px solid var(--t6);color:var(--t8);}.co strong{color:var(--t8);}.cw{background:var(--a0);border-left:3px solid var(--a2);color:var(--a8);}.cw strong{color:var(--a8);}.cd{background:var(--r0);border-left:3px solid var(--r6);color:var(--r8);}.cd strong{color:var(--r8);}.tw{overflow-x:auto;margin:11px 0;border-radius:var(--rad);border:1px solid var(--bd);}.tw table{width:100%;border-collapse:collapse;font-size:12px;}.tw th{background:var(--g0);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--g6);padding:7px 11px;text-align:left;border-bottom:1px solid var(--bds);white-space:nowrap;}.tw td{padding:6px 11px;border-bottom:1px solid var(--bd);vertical-align:top;}.tw tr:last-child td{border-bottom:none;}.tw tr:nth-child(even) td{background:var(--g0);}td.ok{color:var(--t6);font-weight:700;}td.wn{color:var(--a8);font-weight:700;}td.bd{color:var(--r6);font-weight:700;}td.nm{font-variant-numeric:tabular-nums;font-weight:600;}td.em{font-weight:700;color:var(--b8);}.sg2{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:11px;margin:11px 0;}.sc{background:var(--g0);border:1px solid var(--bd);border-radius:var(--radl);overflow:hidden;}.sch{padding:7px 11px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}.sch-bl{background:var(--b6);color:#fff;}.sch-tl{background:var(--t6);color:#fff;}.sch-am{background:var(--a0);color:var(--a8);}.scb{padding:9px 11px;}.scr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd);font-size:12px;}.scr:last-child{border-bottom:none;}.scrl{color:var(--txm);}.scrv{font-weight:700;}.rf{margin-top:36px;padding-top:14px;border-top:1px solid var(--bd);font-size:11px;color:var(--txm);display:flex;justify-content:space-between;}@media print{body{background:#fff;padding:0;}.rpt{box-shadow:none;max-width:none;}}';
+}
+
+function doExport(){
+  var inner=document.getElementById('rc').innerHTML;
+  var cust=S.customerName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
+  var blob=new Blob(['<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Veeam Sizing — '+esc(S.customerName)+'</title><style>'+getReportCSS()+'</style></head><body><div class="rpt">'+inner+'</div></body></html>'],{type:'text/html'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Veeam-Sizing-'+(cust||'Report')+'.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+renderSitesList();
+render();
+</script>
+</body>
+</html>
