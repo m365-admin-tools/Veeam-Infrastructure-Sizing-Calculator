@@ -1,5 +1,4 @@
 # Veeam-Infrastructure-Sizing-Calculator
-# Veeam Infrastructure Sizing Calculator
 
 Please visit https://m365admintools.com/veeam-sizing-calculator for more information and a running view of the tool.
 
